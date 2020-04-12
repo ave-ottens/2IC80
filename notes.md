@@ -121,3 +121,20 @@ modern javascript uses async/await, which is syntactic sugar for promises
 however this is very hard to inject into the npm codebase since none of the functions there use it
 
 alternate approach: rewrite rewrite.js to rely on synchronous fs calls
+
+problem: on the vm node was installed by root, so we don't have permission to overwrite stuff. BUT there's a loophole: if node was installed with nvm the user has permission to write to it :)
+
+after malware install we suddenly need root priviliges to run npm, this has something to do with the symlink. I'm not sure how to solve this now, we can demonstrate the malware using root for now.
+
+windows vm: https://developer.microsoft.com/en-us/microsoft-edge/tools/vms/
+
+
+> proc('readlink -f /usr/bin/npm')
+returns /usr/lib/node_modu;es/npm/bin/npm-cli.js for some reason
+
+this is right. malware installs succesfully but it makes the symlink in 
+
+OK. installation on unix breaks the symlinks somehow. they still show up but are
+unusable. so, npm must now be called with `node /usr/bin/npm`
+
+IT WORKS!!!
