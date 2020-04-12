@@ -169,9 +169,9 @@ Finally, the script also changes the return value for `npm --version`. When the 
 This actually exports two functions: `dirty()` and `clean()`. The dirty command attaches malware into a given package. This happens in two steps:
 
 1. Copy the malware folder into the package.
-2. Create a `preinstall` hook in `package.json`. This hook executes the malware installation script and is run automatically when a package is installed.
+2. Create an`install` hook in `package.json`. This hook executes the malware installation script and is run automatically when a package is installed.
 
-The clean command does the exact opposite: it removes the malware folder and removes the preinstall hook. Again, this command works as expected when executed on its own, but from inside npm it tends to fail.
+The clean command does the exact opposite: it removes the malware folder and removes the install hook. Again, this command works as expected when executed on its own, but from inside npm it tends to fail.
 
 ## Reproduction
 
@@ -227,7 +227,7 @@ $ cd ~/Documents/2IC80/good-package
 $ node /usr/bin/npm pack
 ```
 
-The folder now contains `good-package-7.7.7.tgz`, but with malware attached! We can also open the `package.json` and verify that a `preinstall` hook has been set: this calls the malware installer when the package is installed, even as a dependency.
+The folder now contains `good-package-7.7.7.tgz`, but with malware attached! We can also open the `package.json` and verify that a `install` hook has been set: this calls the malware installer when the package is installed, even as a dependency.
 
 Unfortunately, npm quits with an error after the packing process, and the malware is never deleted from the package. I managed to pinpoint where the error is thrown, but why it happens is still a mystery to me. The function that is supposed to clean up the package does work though, and we can demonstrate it with:
 
@@ -239,7 +239,7 @@ $ node
 > c('/home/minty/Documents/2IC80/good-package')
 ```
 
-Now the malware directory is gone, and the preinstall hook has disappeared from `package.json`! These path names are a pain to type, so you can use the following script instead:
+Now the malware directory is gone, and the install hook has disappeared from `package.json`! These path names are a pain to type, so you can use the following script instead:
 
 ```
 $ cd ~/Documents/2IC80
@@ -256,11 +256,36 @@ We can also demonstrate a more real-world example. The evil-package was packed u
     "version": "6.6.6",
     "scripts": {
         "start": "node index.js",
-        "preinstall": "node ./malware/scripts/install.js"
+        "install": "node ./malware/scripts/install.js"
     }
 }
 ```
 
-The preinstall hook will execute the malware installer, which was bundled when the package was packed.
+The install hook will execute the malware installer, which was bundled when the package was packed.
 
-Before continuing, roll back the VM to the default snapshot. Make sure that npm is fresh by executing `$ npm --version`. It should return `6.13.4` and nothing else. 
+Before continuing, roll back the VM to the default snapshot. Make sure that npm is fresh by executing `$ npm --version`. It should return `6.13.4` and nothing else. Now do:
+
+```
+$ cd ~/Documents/2IC80
+$ npm install --global evil-package-6.6.6.tgz
+```
+
+The output of the command shows that `node ./malware/scripts/install.js` was called, but it wasn't successful! It did succeed in breaking the symlink though, so now we need to prepend our calls to npm with `sudo` again. `sudo npm --version` returns `6.13.4`, which confirms that the malware wasn't injected.
+
+What happened? Well, this is an oversight in how I designed the malware. The install hook works fine, but the relative path does not make sense in this context. npm install can be run from any directory, so the absolute path of `./malware/scripts/install.js` is different each time. We can't actually call the malware from the install hook, because we don't know what path it will be in!
+
+A different approach is needed. Perhaps the call to the malware install script needs to happen in the entry point of the package. This way, we can be sure that the path to the malware folder exists, but it does come with a limitation. The user needs to explicitly call `require(package)` from their code, or otherwise the entry point is never executed. You could argue that this isn't a big deal. After all, a developer downloaded the package with the intent of using it, so the infection might still happen, just with a delay. It is also stealthier: an install hook that contains a path to malware is a red flag after all. 
+
+## Conclusion
+
+This report shows that an attack on the users package manager is possible, but it needs a lot more polishing. Especially write permissions turned out to be an obstacle, although on some configurations they weren't an issue. Instead of trying to fix the bugs discussed in the sections above, I can also think of two different approaches:
+
+* Create a wrapper for the entire npm application. This ditches the unpredictability inherent to code injection into npm. It circumvents the write permission problem, but it is less dynamic - we don't have access to variables inside npm. We could still look at the arguments passed to npm, along with the results to `npm config` to predict what the application is going to do. If we detect that a publish is about to be done, and if we're sure that this publish will succeed, we can attach the malware to the package. This also gives stronger guarantees that we can clean up the package later on - the cleaning code will be called even if npm throws an error.
+
+  This was suggested by the lecturer at the very beginning, oops!
+
+* Steal the users credentials, make an API call to the npm registry to find what packages they have published, and try to find the locations of these packages on disk (by inspecting the git cache, for example). Then publish new and improved versions of these packages all at once. If this worked, it would be destructive for sure. However, 2-factor authentication will slow the spread somewhat. It is also a very "loud" attack, and it won't go unnoticed.
+
+Working on this made me curious about the insides of npm packages, do people hide things in there? Funny photos maybe? Or a bitcoin miner? I'm interested in making a tool that compares a git repository with the tarball of a package, to find files that are modified or not supposed to be in there. It will be a fun side project, and hopefully I'll find something interesting.
+
+This project was half a success. The individual pieces worked, but the bigger picture failed to come together. For a future project, I will look at more approaches instead of locking into one. Either way, I had fun while working on this, and it made me much more aware of the risks of downloading random packages. Node.js and npm are great tools, but perhaps not the most secure!
