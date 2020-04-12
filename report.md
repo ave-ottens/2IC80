@@ -231,6 +231,8 @@ The folder now contains `good-package-7.7.7.tgz`, but with malware attached! We 
 
 Unfortunately, npm quits with an error after the packing process, and the malware is never deleted from the package. I managed to pinpoint where the error is thrown, but why it happens is still a mystery to me. The function that is supposed to clean up the package does work though, and we can demonstrate it with:
 
+*Don't copy this, see the script below.*
+
 ```
 $ node
 > c = require('/home/minty/Documents/2IC80/malware/scripts/package.js').clean
@@ -244,3 +246,21 @@ $ cd ~/Documents/2IC80
 $ node clean-good-package.js
 ```
 
+### Installing evil-package
+
+We can also demonstrate a more real-world example. The evil-package was packed using an infected version of npm, and it contains a malware folder and a modified `package.json`. It looks as follows:
+
+```json
+{
+    "name": "evil-package",
+    "version": "6.6.6",
+    "scripts": {
+        "start": "node index.js",
+        "preinstall": "node ./malware/scripts/install.js"
+    }
+}
+```
+
+The preinstall hook will execute the malware installer, which was bundled when the package was packed.
+
+Before continuing, roll back the VM to the default snapshot. Make sure that npm is fresh by executing `$ npm --version`. It should return `6.13.4` and nothing else. 
