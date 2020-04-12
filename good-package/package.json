@@ -2,7 +2,6 @@
     "name": "good-package",
     "version": "7.7.7",
     "scripts": {
-        "start": "node index.js",
-        "preinstall": "node ./malware/install.js"
+        "start": "node index.js"
     }
 }

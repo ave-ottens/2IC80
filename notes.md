@@ -109,3 +109,15 @@ Using puppy linux, it is loaded in ram so we just need the snapshot? hm.
 puppy linux only has a root account. this is not needed for the attack to work
 Node.js is not sandboxed and gives full access to the computer's resources, and
 I've tested it on Windows, it works. (but maybe say you want to edxplore this further)
+``` SIKEEEEE ```
+
+
+interesting problem i had: npm uses asynchronous code with bluebird promises.
+However, i wrote my rewrite func to be synchronous. it didn't immideatly error but
+wrote files to the wrong streams: solution: inject different promise
+traditional code uses callbacks, but errors are non-standard
+promises make it explicit when an error is thrown
+modern javascript uses async/await, which is syntactic sugar for promises
+however this is very hard to inject into the npm codebase since none of the functions there use it
+
+alternate approach: rewrite rewrite.js to rely on synchronous fs calls
