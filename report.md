@@ -232,6 +232,15 @@ The folder now contains `good-package-7.7.7.tgz`, but with malware attached! We 
 Unfortunately, npm quits with an error after the packing process, and the malware is never deleted from the package. I managed to pinpoint where the error is thrown, but why it happens is still a mystery to me. The function that is supposed to clean up the package does work though, and we can demonstrate it with:
 
 ```
-$
+$ node
+> c = require('/home/minty/Documents/2IC80/malware/scripts/package.js').clean
+> c('/home/minty/Documents/2IC80/good-package')
+```
+
+Now the malware directory is gone, and the preinstall hook has disappeared from `package.json`! These path names are a pain to type, so you can use the following script instead:
+
+```
+$ cd ~/Documents/2IC80
+$ node clean-good-package.js
 ```
 
